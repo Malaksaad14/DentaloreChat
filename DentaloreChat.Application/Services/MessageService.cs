@@ -20,7 +20,7 @@ public class MessageService : IMessageService
     public async Task<Message> SendMessageAsync(Message message)
     {
         // Business rule validation
-        if (string.IsNullOrWhiteSpace(message.Content) && string.IsNullOrWhiteSpace(message.ImageUrl))
+        if (string.IsNullOrWhiteSpace(message.Content) && string.IsNullOrWhiteSpace(message.ImageUrl) && string.IsNullOrWhiteSpace(message.AudioUrl))
         {
             throw new ArgumentException("Message must have content or an image.");
         }

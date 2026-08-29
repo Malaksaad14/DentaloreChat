@@ -17,6 +17,7 @@ Open a terminal at the root of the project and run:
 cd DentaloreChat.Server
 dotnet run
 ```
+*Note: The backend requires PostgreSQL. Make sure your database connection string is correctly configured in `appsettings.json` and that you have run `dotnet ef database update` in the Infrastructure project.*
 
 **2. Start the Frontend (Client)**
 Open a second, split terminal and run:

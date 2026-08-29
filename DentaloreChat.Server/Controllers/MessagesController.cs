@@ -29,8 +29,8 @@ public class MessagesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> SendMessage([FromBody] Message message)
     {
-        if (message == null || (string.IsNullOrWhiteSpace(message.Content) && string.IsNullOrWhiteSpace(message.ImageUrl)))
-            return BadRequest("Message must have content or an image.");
+        if (message == null || (string.IsNullOrWhiteSpace(message.Content) && string.IsNullOrWhiteSpace(message.ImageUrl) && string.IsNullOrWhiteSpace(message.AudioUrl)))
+        return BadRequest("Message must have content, an image, or an audio.");
 
         var savedMessage = await _messageService.SendMessageAsync(message);
         
@@ -38,7 +38,7 @@ public class MessagesController : ControllerBase
         //_ =  is C#'s "discard" operator, tells the compiler: I know this is an async task,
         // but I don't want to await it. Just run it in the background.
         _= _hubContext.Clients.Group($"conversation_{savedMessage.ConversationId}")
-            .SendAsync("ReceiveMessage", savedMessage.ConversationId, savedMessage.SenderId, savedMessage.Content, savedMessage.Timestamp, savedMessage.ImageUrl);
+            .SendAsync("ReceiveMessage", savedMessage.ConversationId, savedMessage.SenderId, savedMessage.Content, savedMessage.Timestamp, savedMessage.ImageUrl, savedMessage.AudioUrl, savedMessage.AudioDuration, savedMessage.AudioSize);
         
         return Ok(savedMessage);
     }
@@ -48,13 +48,18 @@ public class MessagesController : ControllerBase
     {
             if (file == null || file.Length == 0)
         return BadRequest("No file uploaded.");
+
     //  y3ml folder asmo uploads lw msh mawgod
+    //Directory.GetCurrentDirectory() bygeb l path bta3 l project 3shan y3ml l folder da feh
+
     var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
     if (!Directory.Exists(uploadsFolder))
         Directory.CreateDirectory(uploadsFolder);
+
     // 2. bndy l file name unique 3shan lw fe sora tanya b nfs l esm
     var uniqueFileName = Guid.NewGuid().ToString() + "_" + file.FileName;
     var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
     // 3. bn save l sora 3l hard disk bta3 l server
     using (var stream = new FileStream(filePath, FileMode.Create))
     {
@@ -65,4 +70,31 @@ public class MessagesController : ControllerBase
     
     return Ok(new { imageUrl });
     }
+
+    [HttpPost("upload-audio")]
+    public async Task<IActionResult> UploadAudio(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest("No audio file uploaded.");
+
+        var allowedPrefixes = new[] { "audio/webm", "audio/mp4", "audio/mpeg", "audio/ogg", "audio/wav", "audio/aac" };
+        if (!allowedPrefixes.Any(prefix => file.ContentType.StartsWith(prefix)))
+            return BadRequest($"Invalid audio file type: {file.ContentType}");
+
+        var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+        if (!Directory.Exists(uploadsFolder))
+            Directory.CreateDirectory(uploadsFolder);
+
+        var uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
+        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var audioUrl = $"/uploads/{uniqueFileName}";
+        return Ok(new { audioUrl, audioSize = file.Length });
+    }
+
 }

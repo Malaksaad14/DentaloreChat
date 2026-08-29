@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import * as signalR from '@microsoft/signalr';
+import VoiceRecorder from './VoiceRecorder';
+import VoicePlayer from './VoicePlayer';
 
 const USER_MAP = {
   "a1111111-1111-1111-1111-111111111111": "Dr. Hana",
@@ -84,6 +86,7 @@ export default function ChatScreen({ conversationId, activeUser, selectedContact
 
   const [pendingImage, setPendingImage] = useState(null);
   const [pendingImagePreview, setPendingImagePreview] = useState(null); 
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
 
 
   const renderMessageStatus = (msg, isSent) => {
@@ -200,20 +203,36 @@ export default function ChatScreen({ conversationId, activeUser, selectedContact
       // 2. Fake Internet Lag: Wait 1.5 seconds before asking for the next page
       // (Remove the setTimeout wrapper when you want it to be instantly fast again)
       setTimeout(() => {
-        setPage(prev => prev + 1);
+      setPage(prev => prev + 1);
       }, 1500);
     }
   };
  
    //2. awl ma l user ykhtar sora l function de btshtghl
   // de bt save l file f state asmha pendingImage
+  const MAX_FILE_SIZE_MB = 5;
   const handleImageUpload = (e) => {
-   const file = e.target.files[0];
-   if (!file) return;
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Only image files are allowed.');
+      e.target.value = '';
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      alert(`Image is too large. Maximum allowed size is ${MAX_FILE_SIZE_MB}MB.`);
+      e.target.value = '';
+      return;
+    }
+
     setPendingImage(file);
     //bt3ml url wahmy b astkhdam URL.createObjectURL w t3mlo save f state asmha pendingImagePreview 3shan n3rdha l user abl ma yb3t
     setPendingImagePreview(URL.createObjectURL(file));
-    e.target.value = ''; 
+    e.target.value = '';
   };
 
 
@@ -252,8 +271,7 @@ export default function ChatScreen({ conversationId, activeUser, selectedContact
     });
 
     // Listen for incoming messages
-    signalRConnection.on('ReceiveMessage', (convId, senderId, content, timestamp, imageUrl) => {
-      debugger;
+    signalRConnection.on('ReceiveMessage', (convId, senderId, content, timestamp, imageUrl, audioUrl, audioDuration, audioSize) => {
       // 2. Checks if the incoming message belongs to the chat she is currently looking at
       if (convId === conversationId) {
         // 3. Packages the incoming data into a message object
@@ -262,21 +280,24 @@ export default function ChatScreen({ conversationId, activeUser, selectedContact
           senderId: senderId,
           content: content,
           timestamp: timestamp,
-          imageUrl: imageUrl
+          imageUrl: imageUrl,
+          audioUrl: audioUrl,
+          audioDuration: audioDuration,
+          audioSize: audioSize
         };
         // 4. Updates her React state, appending the new message to her chat feed
         setChatHistories(prev => {
           const currentHistory = prev[chatId] || [];
           // Duplicate check to prevent double-rendering bugs
           const isDuplicate = currentHistory.some(msg => {
-            // nkaren bl id 
-            if (msg.id && newMessage.id && msg.id === newMessage.id) return true;
-            
+            // If it's a voice message, audioUrl is unique (UUID-based filename) — enough to detect duplicate
+            if (audioUrl && msg.audioUrl === audioUrl) return true;
+            // If it's an image message, imageUrl is unique
+            if (imageUrl && msg.imageUrl === imageUrl) return true;
+            // For text messages: check sender + content + timestamp window
             const isContentMatch = msg.content === content;
-            const isImageMatch = msg.imageUrl === imageUrl;
-            const isTimeMatch = Math.abs(new Date(msg.timestamp) - new Date(timestamp)) < 2000;
-
-            return msg.senderId === senderId && isContentMatch && isImageMatch && isTimeMatch;
+            const isTimeMatch = Math.abs(new Date(msg.timestamp) - new Date(timestamp)) < 3000;
+            return msg.senderId === senderId && isContentMatch && isTimeMatch;
           });
 
           if (isDuplicate) return prev;
@@ -393,6 +414,41 @@ export default function ChatScreen({ conversationId, activeUser, selectedContact
       }, 2000);
     }
   };
+
+  const handleVoiceSend = async ({ audioUrl, audioSize, audioDuration }) => {
+  setIsVoiceRecording(false);
+  if (!activeUser?.id) return;
+
+  const newMessageObj = {
+    id: Date.now(),
+    senderId: activeUser.id,
+    content: '',
+    audioUrl: audioUrl,
+    audioDuration: audioDuration,
+    audioSize: audioSize,
+    timestamp: new Date().toISOString()
+  };
+
+  setChatHistories(prev => ({
+    ...prev,
+    [chatId]: [...(prev[chatId] || []), newMessageObj]
+  }));
+
+  fetch('http://localhost:5123/api/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      conversationId: conversationId,
+      senderId: activeUser.id,
+      content: '',
+      audioUrl: audioUrl,
+      audioDuration: audioDuration,
+      audioSize: audioSize,
+    })
+  }).catch(err => console.error("Audio send error:", err));
+};
+
+
  //3. lma l user yktb text aw ykhtar sora w ydos send btshtghl l function de
   const handleSend = async (e) => {
     e.preventDefault(); 
@@ -400,7 +456,7 @@ export default function ChatScreen({ conversationId, activeUser, selectedContact
     if (!activeUser?.id) return; 
 
     let uploadedImageUrl = null;
- //bts2l hal fe bending image? lw ah byhot l file f FormData w byb3to l server 3shan y7wlo l url ha2e2y
+ //bts2l hal fe pending image? lw ah byhot l file f FormData w byb3to ll server 3shan y7wlo l url ha2e2y
     if (pendingImage) {
       setIsUploading(true);
       const formData = new FormData();
@@ -461,7 +517,6 @@ export default function ChatScreen({ conversationId, activeUser, selectedContact
       </div>
     );
   }
-
   return (
     <div className="chat-main">
       {/* Header */}
@@ -580,9 +635,16 @@ export default function ChatScreen({ conversationId, activeUser, selectedContact
                            style={{ maxWidth: '200px', borderRadius: '8px', marginBottom: '4px', display: 'block' }} 
                            />
                         )}
+                        {/* Voice Message Player */}
+                        {msg.audioUrl && (
+                          <VoicePlayer 
+                          audioUrl={msg.audioUrl} 
+                          duration={msg.audioDuration} 
+                          isSent={isSent} />
+                        )}
   
                      {/* w b3den n3rd l text*/}
-                      {msg.content}
+                      {msg.content}    
                   </div>
                   <div className="message-meta">
                     <span>{timeStr}</span>
@@ -626,6 +688,13 @@ export default function ChatScreen({ conversationId, activeUser, selectedContact
 )}
 
 
+  {/* Input Bar: show VoiceRecorder OR the normal form */}
+  {isVoiceRecording ? (
+    <VoiceRecorder
+      onSend={handleVoiceSend}
+      onCancel={() => setIsVoiceRecording(false)}
+    />
+  ) : (
   <form onSubmit={handleSend} className="chat-input-container">
     <div className="chat-input-wrapper">
       <input
@@ -642,9 +711,8 @@ export default function ChatScreen({ conversationId, activeUser, selectedContact
     onClick={() => fileInputRef.current?.click()} // l + button marbot b input file mkhfy lma l user ydos 3leh yfthlo l file picker
     disabled={isUploading}
    >
-    {isUploading ? '⏳' : '+'} {/* لو بيرفع يعرض ساعة رملية، لو لأ يعرض + */}
+    {isUploading ? '⏳' : '+'} 
    </button>
-   {/* الـ input الحقيقي بس هنخليه مخفي */}
    <input
      type="file"
      accept="image/*"
@@ -653,6 +721,15 @@ export default function ChatScreen({ conversationId, activeUser, selectedContact
      onChange={handleImageUpload} // el function de btshtghl awl ma l user y5tar sora mn l file picker
     />
 
+    <button
+      type="button"
+      className="plus-btn"
+      title="Record a voice message"
+      onClick={() => setIsVoiceRecording(true)}
+    >
+      🎙️
+    </button>
+
     <button type="submit" className="send-btn">
       Send
       <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
@@ -660,6 +737,7 @@ export default function ChatScreen({ conversationId, activeUser, selectedContact
       </svg>
     </button>
   </form>
+  )}
     </div >
   );
 }

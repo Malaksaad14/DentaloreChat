@@ -7,5 +7,8 @@ public class Message
     public Guid ConversationId { get; set; }
     public Guid SenderId { get; set; }
     public string? ImageUrl {get; set;}
+    public string? AudioUrl { get; set; }
+    public int? AudioDuration { get; set; }
+    public long? AudioSize { get; set; }
     public ICollection<Reaction> Reactions { get; set; } = new List<Reaction>();
 }
