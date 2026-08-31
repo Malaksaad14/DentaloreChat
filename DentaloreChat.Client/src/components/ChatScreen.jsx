@@ -687,12 +687,18 @@ export default function ChatScreen({ conversationId, activeUser, selectedContact
   </div>
 )}
 
+{/* step 1: lma l user bydos 3la l mic byhsl 3 hagat:
+    1. setIsVoiceRecording btb2a true
+    2. l form l 3adya btkhtfy
+    3. bygy makanha l VoiceRecorder component*/} 
 
   {/* Input Bar: show VoiceRecorder OR the normal form */}
   {isVoiceRecording ? (
     <VoiceRecorder
-      onSend={handleVoiceSend}
-      onCancel={() => setIsVoiceRecording(false)}
+     /* l component da byakhod 2 probs */
+      onSend={handleVoiceSend} //bttnada lma l user ykhls recording w ydos send
+      onCancel={() => setIsVoiceRecording(false)}//lw l user das cancel btrg3 false w btrg3 l form l 3adya
+      //l hya l <form> ely taht de 
     />
   ) : (
   <form onSubmit={handleSend} className="chat-input-container">

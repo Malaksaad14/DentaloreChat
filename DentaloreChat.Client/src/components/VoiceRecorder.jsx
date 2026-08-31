@@ -20,11 +20,12 @@ export default function VoiceRecorder({ onSend, onCancel }) {
     const s = sec % 60;
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
-
+// awl ma l voice recorder component ytrsm l useeffect btshghl l startrecording automatically
   useEffect(() => {
     startRecording();
     return () => stopTimer();
-  }, []);
+  }, []); //[]: dependency array shghl bs l function de(start recording) awl ma l component ytrsm mara wahda 
+  //w mtshghlhash tany tol ma howa shghal
 
   const startTimer = () => {
     if (timerRef.current) return; // already running, don't create duplicate
@@ -37,10 +38,14 @@ export default function VoiceRecorder({ onSend, onCancel }) {
       timerRef.current = null; // must null it so startTimer knows it's stopped
     }
   };
-
+// step 2: start recording
   const startRecording = async () => {
     setErrorMsg('');
     try {
+    //bytlob permission bl tasgel mn l browser
+    //`navigator.mediaDevices.getUserMedia` da API gahz fl browser
+    //bytl3 ll user message(pop up) y2olo l mawk3 da ayz ystkhdm l mic mwaf2?
+    //lma l user ywaf2 byrg3 haga asmha stream
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
@@ -53,10 +58,15 @@ export default function VoiceRecorder({ onSend, onCancel }) {
         if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
 
-      // No timeslice — records as one complete blob to avoid webm structure issues
+      //Start recording the audio stream
       recorder.start();
+
+      //Update the UI state to reflect that recording is in progress
       setStatus('recording');
+
+      // Start the timer to track the recording duration in real time
       startTimer();
+      
     } catch (err) {
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
         setPermissionDenied(true);
@@ -72,12 +82,12 @@ export default function VoiceRecorder({ onSend, onCancel }) {
   const stopStream = () => {
     streamRef.current?.getTracks().forEach(t => t.stop());
   };
-
+// lma l user ydos cancel de l btshtghl
   const handleCancel = () => {
-    mediaRecorderRef.current?.stop();
-    stopStream();
-    stopTimer();
-    onCancel();
+    mediaRecorderRef.current?.stop();//byw2f l tasgel
+    stopStream(); //byw2f l stream ashan l red led ely fl browser ytfy
+    stopTimer();//byw2f l timer
+    onCancel();//bykhly isVoiceRecording = false w byrg3 l form l 3adya tany
   };
 
   const handlePause = () => {
@@ -95,15 +105,19 @@ export default function VoiceRecorder({ onSend, onCancel }) {
   };
 
   const handleSend = () => {
+    //lw msh f 7alt recording my3mlsh haga
     if (status !== 'recording') return;
     // If paused, we still allow sending
     stopTimer();
+    //lw kan l user 3aml pause w das 3la send byrg3 y3ml resume l second
     if (isPaused) mediaRecorderRef.current?.resume();
-
+    // l event l hyshtghl b mogrb ma l recorder yo2f
     mediaRecorderRef.current.onstop = async () => {
       stopStream();
+      //bnshof no3 l file bna2n 3la l browser
       const mimeType = mediaRecorderRef.current.mimeType || 'audio/webm';
       const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+      //bngm3 l chunks f blob wahd
       const rawBlob = new Blob(audioChunksRef.current, { type: mimeType });
 
       setStatus('uploading');
@@ -113,22 +127,27 @@ export default function VoiceRecorder({ onSend, onCancel }) {
       const durationMs = duration * 1000;
       const blob = await fixWebmDuration(rawBlob, durationMs, { logger: false });
 
+    //bnht l file gowa formdata ashan nb3to ll server
       const formData = new FormData();
       formData.append('file', blob, `voice_${Date.now()}.${ext}`);
 
 
       try {
-        // Using XMLHttpRequest to track upload progress
+        // Using XMLHttpRequest instead of fetch to track upload progress
+        //hena bn create object yakhod l formdata w ywadeh ll server
         const xhr = new XMLHttpRequest();
+        //hena bn2olo htroh ll 3nwan da
         xhr.open('POST', 'http://localhost:5123/api/messages/upload-audio');
-
+       //tol manta btrf3 ab3tlna msg(event) feha atrf3 ad eh mn l total
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 100));
         };
-
+     
         xhr.onload = () => {
           if (xhr.status === 200) {
+            //bnakhod l rd l gay mn l server (ely 3obara 3n json feh l audio url)
             const data = JSON.parse(xhr.responseText);
+            //bnady onsend ashan nb3t l url da l chatscreen ashan yzhr fl chat
             onSend({ audioUrl: data.audioUrl, audioSize: data.audioSize, audioDuration: duration });
           } else {
             setStatus('error');
@@ -140,7 +159,7 @@ export default function VoiceRecorder({ onSend, onCancel }) {
           setStatus('error');
           setErrorMsg('Connection lost during upload. Please try again.');
         };
-
+      //hena b2a bnb3t l form data ll server f3ln
         xhr.send(formData);
       } catch (err) {
         setStatus('error');
