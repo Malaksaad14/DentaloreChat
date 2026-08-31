@@ -4,21 +4,28 @@ import ConversationList from './components/ConversationList';
 import ChatScreen from './components/ChatScreen';
 import * as signalR from '@microsoft/signalr';
 import './App.css';
+import LoginPage from './components/LoginPage';
 
-const ALL_SAMPLE_USERS = [
-  { id: "a1111111-1111-1111-1111-111111111111", name: "Dr. Hana", clinicId: "11111111-1111-1111-1111-111111111111", clinicName: "Branch A" },
-  { id: "a2222222-2222-2222-2222-222222222222", name: "Dr. Ahmed", clinicId: "11111111-1111-1111-1111-111111111111", clinicName: "Branch A" },
-  { id: "a3333333-3333-3333-3333-333333333333", name: "Dr. Sara", clinicId: "22222222-2222-2222-2222-222222222222", clinicName: "Branch B" },
-  { id: "a4444444-4444-4444-4444-444444444444", name: "Dr. Omar", clinicId: "22222222-2222-2222-2222-222222222222", clinicName: "Branch B" }
-];
 
 export default function App() {
-  const [activeUser, setActiveUser] = useState(ALL_SAMPLE_USERS[0]);
+  //ashan lma a3ml refresh my3mlsh logout
+  const [activeUser, setActiveUser] = useState(() => {
+    const savedUser = localStorage.getItem('chat_activeUser');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   const [selectedConversationId, setSelectedConversationId] = useState(null);
   const [selectedContact, setSelectedContact] = useState(null);
   const [onlineUserIds, setOnlineUserIds] = useState([]);
   const [signalRConnection, setSignalRConnection] = useState(null);
   const previousUserIdRef = useRef(null);
+//ashan lma a3ml refresh my3mlsh logout
+  useEffect(() => {
+    if (activeUser) {
+      localStorage.setItem('chat_activeUser', JSON.stringify(activeUser));
+    } else {
+      localStorage.removeItem('chat_activeUser');
+    }
+  }, [activeUser]);
 
   // Create shared SignalR connection
   useEffect(() => {
@@ -68,49 +75,29 @@ export default function App() {
     }
   }, [signalRConnection, activeUser]);
 
-  const handleSwitchActiveUser = (newUser) => {
-    setActiveUser(newUser);
 
-    // STRICT FILTER: Find colleagues ONLY in the new user's clinic
-    const validColleagues = ALL_SAMPLE_USERS.filter(
-      u => u.id !== newUser.id && u.clinicId === newUser.clinicId
-    );
-    
+    // Add this inside the App component to handle logout
+  const handleLogout = () => {
+    setActiveUser(null);
     setSelectedContact(null);
     setSelectedConversationId(null);
   };
 
-  function getConversationIdForUsers(userId1, userId2) {
-    const ids = [userId1, userId2].sort((a, b) => a.localeCompare(b));
-    // Dr. Hana (a111) and Dr. Ahmed (a222)
-    if (ids[0] === "a1111111-1111-1111-1111-111111111111" && ids[1] === "a2222222-2222-2222-2222-222222222222") 
-      return "c1111111-1111-1111-1111-111111111111";
-    // Dr. Sara (a333) and Dr. Omar (a444)
-    if (ids[0] === "a3333333-3333-3333-3333-333333333333" && ids[1] === "a4444444-4444-4444-4444-444444444444") 
-      return "c4444444-4444-4444-4444-444444444444"; 
-    
-    return "c1111111-1111-1111-1111-111111111111"; // Fallback
+  // Replace your current return statement with this:
+  if (!activeUser) {
+    return <LoginPage onLoginSuccess={setActiveUser} />;
   }
 
   return (
     <div className="app-container">
       <NavIconBar 
         activeUser={activeUser} 
-        onSwitchUserClick={(nextUser) => {
-          if (nextUser) {
-            handleSwitchActiveUser(nextUser);
-          } else {
-            const currentIndex = ALL_SAMPLE_USERS.findIndex(u => u.id === activeUser.id);
-            const next = ALL_SAMPLE_USERS[(currentIndex + 1) % ALL_SAMPLE_USERS.length];
-            handleSwitchActiveUser(next);
-          }
-        }} 
+        onLogoutClick={handleLogout} 
       />
 
       <div className="app-main-window">
         <ConversationList 
           activeUser={activeUser}
-          onSwitchActiveUser={handleSwitchActiveUser}
           selectedContact={selectedContact}
           onSelectContact={setSelectedContact}
           selectedConversationId={selectedConversationId} 
@@ -129,101 +116,5 @@ export default function App() {
       </div>
     </div>
   );
+
 }
-
-
-
-
-// import React, { useState } from 'react';
-// import NavIconBar from './components/NavIconBar';
-// import ConversationList from './components/ConversationList';
-// import ChatScreen from './components/ChatScreen';
-// import './App.css';
-
-// const ALL_SAMPLE_USERS = [
-//   { id: 1, name: "Dr. Malak", clinicId: 1, clinicName: "Branch A" },
-//   { id: 2, name: "Dr. Ahmed", clinicId: 1, clinicName: "Branch A" },
-//   { id: 3, name: "Dr. Sara", clinicId: 2, clinicName: "Branch B" }
-// ];
-
-// export default function App() {
-//   // Default logged-in user: Dr. Malak (id: 1)
-//   const [activeUser, setActiveUser] = useState(ALL_SAMPLE_USERS[0]);
-  
-//   // Selected conversation ID (default: Conversation 1 between Malak and Ahmed)
-//   const [selectedConversationId, setSelectedConversationId] = useState(1);
-
-//   // Selected contact target (Default: Dr. Ahmed)
-//   const [selectedContact, setSelectedContact] = useState(ALL_SAMPLE_USERS[1]);
-
-//   // Switch logged-in user context safely
-//   const handleSwitchActiveUser = (newUser) => {
-//     setActiveUser(newUser);
-
-//     // Find valid colleagues in the NEW user's clinic
-//     const validColleagues = ALL_SAMPLE_USERS.filter(
-//       u => u.id !== newUser.id && u.clinicId === newUser.clinicId
-//     );
-    
-//     // Default to the group chat if it belongs to their clinic, otherwise pick a colleague, otherwise null
-//     const defaultContact = newUser.clinicId === 1 
-//       ? { id: 101, isGroup: true, groupName: "Group Chat" } 
-//       : (validColleagues.length > 0 ? validColleagues[0] : null);
-
-//     setSelectedContact(defaultContact);
-
-//     if (defaultContact) {
-//       const newConvId = defaultContact.isGroup ? 101 : getConversationIdForUsers(newUser.id, defaultContact.id);
-//       setSelectedConversationId(newConvId);
-//     } else {
-//       setSelectedConversationId(null);
-//     }
-//   };
-
-//   // Helper function to get conversation ID based on two user IDs
-//   function getConversationIdForUsers(userId1, userId2) {
-//     const ids = [userId1, userId2].sort((a, b) => a - b);
-//     if (ids[0] === 1 && ids[1] === 2) return 1; // Malak & Ahmed
-//     if (ids[0] === 1 && ids[1] === 3) return 2; // Malak & Sara
-//     if (ids[0] === 2 && ids[1] === 3) return 3; // Ahmed & Sara
-//     return 1; // Default fallback
-//   }
-
-//   return (
-//     <div className="app-container">
-//       {/* Far Left Navigation Icon Bar */}
-//       <NavIconBar 
-//         activeUser={activeUser} 
-//         onSwitchUserClick={(nextUser) => {
-//           if (nextUser) {
-//             handleSwitchActiveUser(nextUser);
-//           } else {
-//             const currentIndex = ALL_SAMPLE_USERS.findIndex(u => u.id === activeUser.id);
-//             const next = ALL_SAMPLE_USERS[(currentIndex + 1) % ALL_SAMPLE_USERS.length];
-//             handleSwitchActiveUser(next);
-//           }
-//         }} 
-//       />
-
-//       {/* Main App Window Card (Sidebar + Full Chat Area) */}
-//       <div className="app-main-window">
-//         {/* Left Sidebar: Channels & Direct Messages contacts list */}
-//         <ConversationList 
-//           activeUser={activeUser}
-//           onSwitchActiveUser={handleSwitchActiveUser}
-//           selectedContact={selectedContact}
-//           onSelectContact={setSelectedContact}
-//           selectedConversationId={selectedConversationId} 
-//           onSelectConversation={setSelectedConversationId} 
-//         />
-        
-//         {/* Middle/Full Area: Active Chat Feed & Input */}
-//         <ChatScreen 
-//           conversationId={selectedConversationId} 
-//           activeUser={activeUser}
-//           selectedContact={selectedContact} 
-//         />
-//       </div>
-//     </div>
-//   );
-// }

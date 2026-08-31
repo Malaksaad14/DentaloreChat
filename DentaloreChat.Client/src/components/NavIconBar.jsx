@@ -1,13 +1,7 @@
 import React from 'react';
 
-const ALL_SAMPLE_USERS = [
-  { id: 1, name: "Dr. Hana", clinicId: 1, clinicName: "Branch A" },
-  { id: 2, name: "Dr. Ahmed", clinicId: 1, clinicName: "Branch A" },
-  { id: 3, name: "Dr. Sara", clinicId: 2, clinicName: "Branch B" },
-  { id: 4, name: "Dr. Omar", clinicId: 2, clinicName: "Branch B" }
-];
 
-export default function NavIconBar({ activeUser, onSwitchUserClick }) {
+export default function NavIconBar({ activeUser, onLogoutClick }) {
   return (
     <div className="nav-bar">
       <div className="nav-icons-top">
@@ -53,13 +47,10 @@ export default function NavIconBar({ activeUser, onSwitchUserClick }) {
         <div 
           className="avatar-wrapper" 
           style={{ cursor: 'pointer' }}
-          title={`Active User: ${activeUser?.name || 'User'}`}
-          onClick={() => {
-            const currentIndex = ALL_SAMPLE_USERS.findIndex(u => u.id === activeUser?.id);
-            const nextUser = ALL_SAMPLE_USERS[(currentIndex + 1) % ALL_SAMPLE_USERS.length];
-            onSwitchUserClick(nextUser);
-          }}
+          title={`Active User: ${activeUser?.name || 'User'} (Click to Logout)`}
+          onClick={() => onLogoutClick()}
         >
+
           <div className="avatar" style={{ width: '38px', height: '38px', fontSize: '13px', background: 'linear-gradient(135deg, #0284c7, #06b6d4)' }}>
             {activeUser?.name ? activeUser.name.split(' ').map(n => n[0]).join('') : 'U'}
           </div>

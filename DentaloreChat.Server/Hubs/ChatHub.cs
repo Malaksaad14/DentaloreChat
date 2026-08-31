@@ -10,6 +10,12 @@ namespace DentaloreChat.Server.Hubs
     {
         // Track multiple connections per user: userId -> set of connectionIds
         private static readonly ConcurrentDictionary<Guid, HashSet<string>> _userConnections = new ConcurrentDictionary<Guid, HashSet<string>>();
+ 
+        // NEW: Allow clients to fetch who is currently online when they first connect
+    public IEnumerable<Guid> GetOnlineUsers()
+    {
+        return _userConnections.Keys.ToList();
+    }
 
     public async Task UserConnected(Guid userId, Guid clinicId)
     {

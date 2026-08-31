@@ -1,11 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import CreateGroupModal from './CreateGroupModal';
-const ALL_SAMPLE_USERS = [
-  { id: "a1111111-1111-1111-1111-111111111111", name: "Dr. Hana", clinicId: "11111111-1111-1111-1111-111111111111", clinicName: "Branch A" },
-  { id: "a2222222-2222-2222-2222-222222222222", name: "Dr. Ahmed", clinicId: "11111111-1111-1111-1111-111111111111", clinicName: "Branch A" },
-  { id: "a3333333-3333-3333-3333-333333333333", name: "Dr. Sara", clinicId: "22222222-2222-2222-2222-222222222222", clinicName: "Branch B" },
-  { id: "a4444444-4444-4444-4444-444444444444", name: "Dr. Omar", clinicId: "22222222-2222-2222-2222-222222222222", clinicName: "Branch B" }
-];
+
 
 function getConversationIdForUsers(userId1, userId2) {
   const ids = [userId1, userId2].sort((a, b) => a.localeCompare(b));
@@ -29,6 +24,7 @@ export default function ConversationList({
   const [searchTerm, setSearchTerm] = useState('');
   const [onlineUserIds, setOnlineUserIds] = useState([]); 
   const [groups, setGroups] = useState([]);
+  const [otherUsers, setOtherUsers] = useState([]);
 
   // NEW: State to track unread messages { conversationId: count }
   const [unreadCounts, setUnreadCounts] = useState({});
@@ -73,8 +69,7 @@ export default function ConversationList({
       if (!activeUser?.id) return;
 
       // Find all other doctors in this clinic
-      const colleagues = ALL_SAMPLE_USERS.filter(u => u.id !== activeUser.id && u.clinicId === activeUser.clinicId);
-      
+      const colleagues = otherUsers;
       for (const contact of colleagues) {
         const convId = getConversationIdForUsers(activeUser.id, contact.id);
         
@@ -113,6 +108,16 @@ export default function ConversationList({
   useEffect(() => {
     // NEW: Use shared connection from parent
     if (!signalRConnection) return;
+
+    // ADD THIS NEW BLOCK: Fetch the initially online users
+    signalRConnection.invoke('GetOnlineUsers')
+      .then(onlineIds => {
+        setOnlineUserIds(onlineIds);
+        setTimeout(() => {
+          if (onOnlineUsersChange) onOnlineUsersChange(onlineIds);
+        }, 0);
+      })
+      .catch(err => console.error("Could not fetch initial online users", err));
 
     // Only set up listeners once (not on every activeUser change)
     signalRConnection.on('UpdateUserStatus', (userId, isOnline) => {
@@ -175,7 +180,7 @@ export default function ConversationList({
       signalRConnection.off('GroupCreated');
       signalRConnection.off('GroupDeleted');
     };
-  }, [signalRConnection, activeUser]); 
+  }, [signalRConnection, activeUser, otherUsers]); 
 
   // Separate effect to join conversations when activeUser changes
   useEffect(() => {
@@ -199,9 +204,19 @@ export default function ConversationList({
   }, [activeUser, signalRConnection]);
 
   
-  const otherUsers = ALL_SAMPLE_USERS.filter(u => 
-    u.id !== activeUser.id && u.clinicId === activeUser.clinicId
-  );
+  // Replace lines 197-199 with this:
+  useEffect(() => {
+    if (!activeUser?.clinicId) return;
+    
+    fetch(`http://localhost:5123/api/users/clinic/${activeUser.clinicId}`)
+      .then(res => res.json())
+      .then(data => {
+        // Keep everyone except ourselves
+        setOtherUsers(data.filter(u => u.id !== activeUser.id));
+      })
+      .catch(err => console.error("Failed to fetch doctors", err));
+  }, [activeUser]);
+
 
   const filteredContacts = otherUsers.filter(u => 
     u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -386,37 +401,7 @@ export default function ConversationList({
 
       </div>{/* end scrollable middle area */}
 
-      {/* Bottom Switcher */}
-      <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-panel)' }}>
-        <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '6px', fontWeight: 'bold' }}>
-          LOGGED IN AS (SWITCH DOCTOR):
-        </div>
-        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-          {ALL_SAMPLE_USERS.map(u => {
-            const isActive = activeUser.id === u.id;
-            return (
-              <button
-                key={u.id}
-                onClick={() => onSwitchActiveUser(u)}
-                style={{
-                  flex: '1 1 45%',
-                  padding: '6px 2px',
-                  fontSize: '10px',
-                  fontWeight: '600',
-                  borderRadius: '6px',
-                  border: isActive ? '1px solid #38bdf8' : '1px solid var(--border-color)',
-                  background: isActive ? 'linear-gradient(135deg, rgba(2, 132, 199, 0.3), rgba(6, 182, 212, 0.3))' : 'var(--bg-card)',
-                  color: isActive ? '#38bdf8' : 'var(--text-muted)',
-                  cursor: 'pointer',
-                  textAlign: 'center'
-                }}
-              >
-                {u.name}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+     
 
       {/* Render the Create Group Modal if open */}
       {showCreateGroupModal && (

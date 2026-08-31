@@ -1,5 +1,5 @@
 namespace DentaloreChat.Infrastructure.Data;
-
+using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
 using DentaloreChat.Domain.Entities;
 
@@ -47,12 +47,13 @@ public class AppDbContext : DbContext
             new Clinic { Id = clinic2Id, Name = "Dental Clinic - Branch B" }
         );
 
-        modelBuilder.Entity<User>().HasData(
-            new User { Id = user1Id, Name = "Dr. Hana", ClinicId = clinic1Id },
-            new User { Id = user2Id, Name = "Dr. Ahmed", ClinicId = clinic1Id },
-            new User { Id = user3Id, Name = "Dr. Sara", ClinicId = clinic2Id },
-            new User { Id = user4Id, Name = "Dr. Omar", ClinicId = clinic2Id }
+         modelBuilder.Entity<User>().HasData(
+            new User { Id = user1Id, Name = "Dr. Hana", ClinicId = clinic1Id, Email = "hana@clinic.com", PasswordHash = BCrypt.HashPassword("password123") },
+            new User { Id = user2Id, Name = "Dr. Ahmed", ClinicId = clinic1Id, Email = "ahmed@clinic.com", PasswordHash = BCrypt.HashPassword("password123") },
+            new User { Id = user3Id, Name = "Dr. Sara", ClinicId = clinic2Id, Email = "sara@clinic.com", PasswordHash = BCrypt.HashPassword("password123") },
+            new User { Id = user4Id, Name = "Dr. Omar", ClinicId = clinic2Id, Email = "omar@clinic.com", PasswordHash = BCrypt.HashPassword("password123") }
         );
+
 
         modelBuilder.Entity<Conversation>().HasData(
             new Conversation { Id = conv1Id, ClinicId = clinic1Id, IsGroup = false },
