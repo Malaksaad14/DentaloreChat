@@ -13,7 +13,6 @@ function getConversationIdForUsers(userId1, userId2) {
 
 export default function ConversationList({ 
   activeUser, 
-  onSwitchActiveUser, 
   selectedContact, 
   onSelectContact,
   selectedConversationId, 
@@ -192,11 +191,9 @@ export default function ConversationList({
         await signalRConnection.invoke('JoinConversation', group.id);
       }
 
-      // NEW: Silently join all Direct Message chats to listen for background notifications
-      const colleagues = ALL_SAMPLE_USERS.filter(u => u.id !== activeUser.id && u.clinicId === activeUser.clinicId);
-      for (const contact of colleagues) {
-        const convId = getConversationIdForUsers(activeUser.id, contact.id);
-        await signalRConnection.invoke('JoinConversation', convId);
+      for (const contact of otherUsers) {
+          const convId = getConversationIdForUsers(activeUser.id, contact.id);
+          await signalRConnection.invoke('JoinConversation', convId);
       }
     };
 
@@ -204,7 +201,7 @@ export default function ConversationList({
   }, [activeUser, signalRConnection]);
 
   
-  // Replace lines 197-199 with this:
+
   useEffect(() => {
     if (!activeUser?.clinicId) return;
     

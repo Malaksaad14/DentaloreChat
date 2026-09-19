@@ -76,14 +76,13 @@ export default function App() {
   }, [signalRConnection, activeUser]);
 
 
-    // Add this inside the App component to handle logout
+  
   const handleLogout = () => {
     setActiveUser(null);
     setSelectedContact(null);
     setSelectedConversationId(null);
   };
 
-  // Replace your current return statement with this:
   if (!activeUser) {
     return <LoginPage onLoginSuccess={setActiveUser} />;
   }
